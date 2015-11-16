@@ -7,7 +7,7 @@ namespace RunAtStartUp
 {
   class Program
   {
-    const string Path = "SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Run";
+    const string RegPath = "SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Run";
 
     static void Main(string[] args)
     {
@@ -32,13 +32,20 @@ namespace RunAtStartUp
               arguments = reader.ReadString();
             }
 
-            using (var key = Registry.CurrentUser.OpenSubKey(Path, false))
+            Console.Out.WriteLine("Received:");
+            Console.Out.WriteLine("\tName: {0}", name);
+            Console.Out.WriteLine("\tAdd: {0}", add);
+            Console.Out.WriteLine("\tPath: {0}", path);
+            Console.Out.WriteLine("\tHasArgument: {0}", hasArguments);
+            Console.Out.WriteLine("\tArguments: {0}", arguments);
+
+            using (var key = Registry.CurrentUser.OpenSubKey(RegPath, true))
             {
               if (add)
               {
                 if (!string.IsNullOrWhiteSpace(arguments))
                 {
-                  key.SetValue(name, string.Format("{0} \"{1}\"", path, arguments));
+                  key.SetValue(name, string.Format("\"{0}\" {1}", path, arguments));
                 }
                 else
                 {
@@ -52,8 +59,9 @@ namespace RunAtStartUp
             }
           }
         }
-        catch
+        catch(Exception ex)
         {
+          Console.Error.WriteLine(ex);
           success = false;
         }
       }

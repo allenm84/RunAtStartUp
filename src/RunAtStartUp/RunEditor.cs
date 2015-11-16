@@ -11,24 +11,26 @@ using Microsoft.Win32;
 
 namespace RunAtStartUp
 {
-  public class Run
+  public class RunEditor
   {
-    const string Path = "SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Run";
+    const string RegPath = "SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Run";
+    const string OutputAssemly = "UpdateRegistry.exe";
 
-    static readonly string sOutputAssemly = "program.exe";
     static readonly RunCleanup sCleanup = new RunCleanup();
 
     private readonly string mAppName;
+    private readonly string mAppPath;
 
-    public Run(string appName)
+    public RunEditor(string appName, string appPath)
     {
       mAppName = appName;
+      mAppPath = appPath;
     }
 
-    private bool Update(string path, bool hasArguments, string arguments, bool add)
+    private bool Update(bool hasArguments, string arguments, bool add)
     {
-      var info = new ProcessStartInfo(sOutputAssemly);
-      info.Arguments = CreateArguments(mAppName, add, path, hasArguments, arguments);
+      var info = new ProcessStartInfo(OutputAssemly);
+      info.Arguments = CreateArguments(mAppName, add, mAppPath, hasArguments, arguments);
       info.Verb = "runas";
 
       using (var process = Process.Start(info))
@@ -55,23 +57,23 @@ namespace RunAtStartUp
 
     public bool Read()
     {
-      using (var key = Registry.CurrentUser.OpenSubKey(Path, false))
+      using (var key = Registry.CurrentUser.OpenSubKey(RegPath, false))
       {
         return key.GetValue(mAppName) != null;
       }
     }
 
-    public Task<bool> Remove(string path)
+    public Task<bool> Remove()
     {
-      return Task.Run(() => Update(path, false, "", false));
+      return Task.Run(() => Update(false, "", false));
     }
 
-    public Task<bool> Write(string path, string arguments)
+    public Task<bool> Write(string arguments)
     {
-      return Task.Run(() => Update(path, true, arguments, true));
+      return Task.Run(() => Update(true, arguments, true));
     }
 
-    static Run()
+    static RunEditor()
     {
       var code = Resources.Program;
       var provider = new CSharpCodeProvider();
@@ -79,7 +81,7 @@ namespace RunAtStartUp
       var parameters = new CompilerParameters();
       parameters.GenerateInMemory = false;
       parameters.GenerateExecutable = true;
-      parameters.OutputAssembly = sOutputAssemly;
+      parameters.OutputAssembly = OutputAssemly;
 
       var results = provider.CompileAssemblyFromSource(parameters, code);
       if (results.Errors.HasErrors)
@@ -95,7 +97,7 @@ namespace RunAtStartUp
 
     static void RemoveOutputAssembly()
     {
-      File.Delete(sOutputAssemly);
+      File.Delete(OutputAssemly);
     }
 
     private class RunCleanup
