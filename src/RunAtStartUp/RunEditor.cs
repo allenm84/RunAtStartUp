@@ -14,9 +14,9 @@ namespace RunAtStartUp
   public class RunEditor
   {
     const string RegPath = "SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Run";
-    const string OutputAssemly = "UpdateRegistry.exe";
 
     static readonly RunCleanup sCleanup = new RunCleanup();
+    static readonly Lazy<string> sOutputAssembly;
 
     private readonly string mAppName;
     private readonly string mAppPath;
@@ -29,7 +29,7 @@ namespace RunAtStartUp
 
     private bool Update(bool hasArguments, string arguments, bool add)
     {
-      var info = new ProcessStartInfo(OutputAssemly);
+      var info = new ProcessStartInfo(sOutputAssembly.Value);
       info.Arguments = CreateArguments(mAppName, add, mAppPath, hasArguments, arguments);
       info.Verb = "runas";
 
@@ -75,13 +75,18 @@ namespace RunAtStartUp
 
     static RunEditor()
     {
+      sOutputAssembly = new Lazy<string>(CreateAssembly, true);
+    }
+
+    static string CreateAssembly()
+    {
       var code = Resources.Program;
       var provider = new CSharpCodeProvider();
 
       var parameters = new CompilerParameters();
       parameters.GenerateInMemory = false;
       parameters.GenerateExecutable = true;
-      parameters.OutputAssembly = OutputAssemly;
+      parameters.OutputAssembly = "UpdateRegistry.exe";
 
       var results = provider.CompileAssemblyFromSource(parameters, code);
       if (results.Errors.HasErrors)
@@ -93,11 +98,18 @@ namespace RunAtStartUp
         }
         throw new InvalidOperationException(sb.ToString());
       }
+
+      return parameters.OutputAssembly;
     }
 
     static void RemoveOutputAssembly()
     {
-      File.Delete(OutputAssemly);
+      if (!sOutputAssembly.IsValueCreated)
+      {
+        return;
+      }
+
+      File.Delete(sOutputAssembly.Value);
     }
 
     private class RunCleanup
